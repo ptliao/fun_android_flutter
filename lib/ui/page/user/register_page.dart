@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
 
-import 'package:oktoast/oktoast.dart';
 import 'package:fun_android/provider/provider_widget.dart';
 import 'package:fun_android/ui/widget/button_progress_indicator.dart';
 import 'package:fun_android/view_model/register_model.dart';
 
 import 'package:fun_android/ui/page/user/login_widget.dart';
 
-import 'login_page.dart';
 import 'login_field_widget.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -53,7 +51,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           model: RegisterModel(),
                           builder: (context, model, child) => Form(
                                 onWillPop: () async {
-                                  return !model.busy;
+                                  return !model.isBusy;
                                 },
                                 child: LoginFormContainer(
                                   child: Column(
@@ -64,30 +62,25 @@ class _RegisterPageState extends State<RegisterPage> {
                                           label: S.of(context).userName,
                                           icon: Icons.person_outline,
                                           controller: _nameController,
-                                          textInputAction:
-                                              TextInputAction.next,
+                                          textInputAction: TextInputAction.next,
                                         ),
                                         LoginTextField(
                                           label: S.of(context).password,
                                           icon: Icons.lock_outline,
                                           obscureText: true,
                                           controller: _passwordController,
-                                          textInputAction:
-                                              TextInputAction.next,
+                                          textInputAction: TextInputAction.next,
                                         ),
                                         LoginTextField(
                                           label: S.of(context).rePassword,
                                           icon: Icons.lock_outline,
                                           obscureText: true,
                                           controller: _rePasswordController,
-                                          textInputAction:
-                                              TextInputAction.done,
+                                          textInputAction: TextInputAction.done,
                                           validator: (value) {
                                             return value !=
                                                     _passwordController.text
-                                                ? S
-                                                    .of(context)
-                                                    .twoPwdDifferent
+                                                ? S.of(context).twoPwdDifferent
                                                 : null;
                                           },
                                         ),
@@ -123,7 +116,7 @@ class RegisterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LoginButtonWidget(
-      child: model.busy
+      child: model.isBusy
           ? ButtonProgressIndicator()
           : Text(
               S.of(context).signUp,
@@ -132,7 +125,7 @@ class RegisterButton extends StatelessWidget {
                   .title
                   .copyWith(wordSpacing: 6),
             ),
-      onPressed: model.busy
+      onPressed: model.isBusy
           ? null
           : () {
               if (Form.of(context).validate()) {
@@ -143,7 +136,7 @@ class RegisterButton extends StatelessWidget {
                   if (value) {
                     Navigator.of(context).pop(nameController.text);
                   } else {
-                    showToast(model.errorMessage);
+                    model.showErrorMessage(context);
                   }
                 });
               }

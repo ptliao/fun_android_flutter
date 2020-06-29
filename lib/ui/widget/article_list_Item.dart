@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
 import 'package:fun_android/ui/helper/favourite_helper.dart';
-import 'package:fun_android/config/resource_mananger.dart';
-import 'package:fun_android/config/router_config.dart';
+import 'package:fun_android/config/router_manger.dart';
 import 'package:fun_android/model/article.dart';
 import 'package:fun_android/provider/provider_widget.dart';
 import 'package:fun_android/view_model/favourite_model.dart';
+import 'package:fun_android/view_model/user_model.dart';
+import 'package:provider/provider.dart';
+import 'package:quiver/strings.dart';
 
+import 'image.dart';
 import 'animated_provider.dart';
-import 'favourite_animation.dart';
 import 'article_tag.dart';
 
 class ArticleItemWidget extends StatelessWidget {
@@ -22,12 +23,18 @@ class ArticleItemWidget extends StatelessWidget {
   /// 首页置顶
   final bool top;
 
-  ArticleItemWidget(this.article, {this.index, this.onTap, this.top: false})
+  /// 隐藏收藏按钮
+  final bool hideFavourite;
+
+  ArticleItemWidget(this.article,
+      {this.index, this.onTap, this.top: false, this.hideFavourite: false})
       : super(key: ValueKey(article.id));
 
   @override
   Widget build(BuildContext context) {
     var backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    /// 用于Hero动画的标记
+    UniqueKey uniqueKey = UniqueKey();
     return Stack(
       children: <Widget>[
         Material(
@@ -54,22 +61,17 @@ class ArticleItemWidget extends StatelessWidget {
                   Row(
                     children: <Widget>[
                       ClipOval(
-                        child: CachedNetworkImage(
-                          imageUrl: ImageHelper.randomUrl(
-                              key: article.author, width: 20, height: 20),
-                          placeholder: (_, __) =>
-                              ImageHelper.placeHolder(width: 20, height: 20),
-                          errorWidget: (_, __, ___) =>
-                              ImageHelper.error(width: 20, height: 20),
+                        child: WrapperImage(
+                          imageType: ImageType.random,
+                          url: article.author,
                           height: 20,
                           width: 20,
-                          fit: BoxFit.cover,
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(left: 5),
                         child: Text(
-                          article.author,
+                          isNotBlank(article.author) ? article.author : article.shareUser ?? '',
                           style: Theme.of(context).textTheme.caption,
                         ),
                       ),
@@ -95,7 +97,7 @@ class ArticleItemWidget extends StatelessWidget {
                             children: <Widget>[
                               ArticleTitleWidget(article.title),
                               SizedBox(
-                                height: 5,
+                                height: 2,
                               ),
                               Text(
                                 article.desc,
@@ -109,16 +111,11 @@ class ArticleItemWidget extends StatelessWidget {
                         SizedBox(
                           width: 5,
                         ),
-                        CachedNetworkImage(
-                          imageUrl: article.envelopePic,
+                        WrapperImage(
+                          url: article.envelopePic,
                           height: 60,
                           width: 60,
-                          placeholder: (_, __) =>
-                              ImageHelper.placeHolder(width: 60, height: 60),
-                          errorWidget: (_, __, ___) =>
-                              ImageHelper.error(width: 60, height: 60),
-                          fit: BoxFit.cover,
-                        )
+                        ),
                       ],
                     ),
                   Row(
@@ -144,9 +141,20 @@ class ArticleItemWidget extends StatelessWidget {
         Positioned(
           bottom: 0,
           right: 0,
-          child: article.collect == null
+          child: hideFavourite
               ? SizedBox.shrink()
-              : ArticleFavouriteWidget(article),
+              : Consumer<GlobalFavouriteStateModel>(
+                  builder: (context, model, child) {
+                    //利用child局部刷新
+                    if (model[article.id] == null) {
+                      return child;
+                    }
+                    return ArticleFavouriteWidget(
+                        article..collect = model[article.id],
+                        uniqueKey);
+                  },
+                  child: ArticleFavouriteWidget(article, uniqueKey),
+                ),
         )
       ],
     );
@@ -172,45 +180,41 @@ class ArticleTitleWidget extends StatelessWidget {
 /// 收藏按钮
 class ArticleFavouriteWidget extends StatelessWidget {
   final Article article;
+  final UniqueKey uniqueKey;
 
-  ArticleFavouriteWidget(this.article);
+  ArticleFavouriteWidget(this.article, this.uniqueKey);
 
   @override
   Widget build(BuildContext context) {
-    ///位移动画的tag
-    var uniqueKey = UniqueKey();
     return ProviderWidget<FavouriteModel>(
-      model: FavouriteModel(article),
-      builder: (_, model, child) {
-        return GestureDetector(
+      model: FavouriteModel(
+          globalFavouriteModel: Provider.of(context, listen: false)),
+      builder: (_, favouriteModel, __) => GestureDetector(
           behavior: HitTestBehavior.opaque, //否则padding的区域点击无效
           onTap: () async {
-            if (!model.busy) {
-              addFavourites(context, model, uniqueKey);
+            if (!favouriteModel.isBusy) {
+              addFavourites(context,
+                  article: article, model: favouriteModel, tag: uniqueKey);
             }
           },
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Hero(
-              tag: uniqueKey,
-              child: ScaleAnimatedSwitcher(
-                child: model.busy
-                    ? SizedBox.shrink()
-//                  ? SizedBox(
-//                      height: 24,
-//                      width: 24,
-//                      child: CupertinoActivityIndicator(radius: 8),
-//                    )
-                    : Icon(
-                        model.article.collect
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: Colors.redAccent[100]),
-              ),
-            ),
-          ),
-        );
-      },
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Hero(
+                tag: uniqueKey,
+                child: ScaleAnimatedSwitcher(
+                    child: favouriteModel.isBusy
+                        ? SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CupertinoActivityIndicator(radius: 5))
+                        : Consumer<UserModel>(
+                      builder: (context,userModel,child)=>Icon(
+                          userModel.hasUser && article.collect
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color: Colors.redAccent[100]),
+                    )),
+              ))),
     );
   }
 }

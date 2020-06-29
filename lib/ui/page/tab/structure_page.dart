@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
-import 'package:fun_android/config/router_config.dart';
+import 'package:fun_android/config/router_manger.dart';
 import 'package:fun_android/model/navigation_site.dart';
 import 'package:fun_android/model/tree.dart';
 import 'package:fun_android/provider/provider_widget.dart';
@@ -38,17 +38,17 @@ class _StructurePageState extends State<StructurePage>
                         )),
               )),
           body: TabBarView(
-              children: [TreeCategoryList(), NavigationSiteCategoryList()])),
+              children: [StructureCategoryList(), NavigationSiteCategoryList()])),
     );
   }
 }
 /// 体系->体系
-class TreeCategoryList extends StatefulWidget {
+class StructureCategoryList extends StatefulWidget {
   @override
-  _TreeCategoryListState createState() => _TreeCategoryListState();
+  _StructureCategoryListState createState() => _StructureCategoryListState();
 }
 
-class _TreeCategoryListState extends State<TreeCategoryList>
+class _StructureCategoryListState extends State<StructureCategoryList>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -62,10 +62,10 @@ class _TreeCategoryListState extends State<TreeCategoryList>
           model.initData();
         },
         builder: (context, model, child) {
-          if (model.busy) {
-            return Center(child: CircularProgressIndicator());
-          } else if (model.error) {
-            return ViewStateWidget(onPressed: model.initData());
+          if (model.isBusy) {
+            return ViewStateBusyWidget();
+          } else if (model.isError && model.list.isEmpty) {
+            return ViewStateErrorWidget(error: model.viewStateError, onPressed: model.initData);
           }
           return Scrollbar(
             child: ListView.builder(
@@ -73,17 +73,17 @@ class _TreeCategoryListState extends State<TreeCategoryList>
                 itemCount: model.list.length,
                 itemBuilder: (context, index) {
                   Tree item = model.list[index];
-                  return TreeCategoryWidget(item);
+                  return StructureCategoryWidget(item);
                 }),
           );
         });
   }
 }
 
-class TreeCategoryWidget extends StatelessWidget {
+class StructureCategoryWidget extends StatelessWidget {
   final Tree tree;
 
-  TreeCategoryWidget(this.tree);
+  StructureCategoryWidget(this.tree);
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +102,7 @@ class TreeCategoryWidget extends StatelessWidget {
                   tree.children.length,
                   (index) => ActionChip(
                         onPressed: () {
-                          Navigator.of(context).pushNamed(RouteName.treeList,
+                          Navigator.of(context).pushNamed(RouteName.structureList,
                               arguments: [tree, index]);
                         },
                         label: Text(
@@ -138,10 +138,10 @@ class _NavigationSiteCategoryListState extends State<NavigationSiteCategoryList>
           model.initData();
         },
         builder: (context, model, child) {
-          if (model.busy) {
-            return Center(child: CircularProgressIndicator());
-          } else if (model.error) {
-            return ViewStateWidget(onPressed: model.initData());
+          if (model.isBusy) {
+            return ViewStateBusyWidget();
+          } else if (model.isError) {
+            return ViewStateErrorWidget(error: model.viewStateError, onPressed: model.initData);
           }
           return Scrollbar(
             child: ListView.builder(

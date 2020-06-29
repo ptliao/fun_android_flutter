@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' hide SearchDelegate;
 import 'package:flutter/cupertino.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
 import 'package:provider/provider.dart';
 import 'package:fun_android/config/resource_mananger.dart';
 import 'package:fun_android/flutter/search.dart';
@@ -16,12 +16,12 @@ class SearchSuggestions<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints viewportConstraints) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: viewportConstraints.maxHeight,
-              minWidth: viewportConstraints.maxWidth,
+              minHeight: constraints.maxHeight,
+              minWidth: constraints.maxWidth,
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 15),
@@ -34,7 +34,7 @@ class SearchSuggestions<T> extends StatelessWidget {
                     Provider<TextStyle>.value(
                         value: Theme.of(context).textTheme.body1),
                     ProxyProvider<TextStyle, Color>(
-                      builder: (context, textStyle, _) =>
+                      update: (context, textStyle, _) =>
                           textStyle.color.withOpacity(0.5),
                     ),
                   ],
@@ -68,7 +68,7 @@ class _SearchHotKeysWidgetState extends State<SearchHotKeysWidget> {
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((callback) {
-      Provider.of<SearchHotKeyModel>(context).initData();
+      Provider.of<SearchHotKeyModel>(context,listen: false).initData();
     });
     super.initState();
   }
@@ -84,6 +84,7 @@ class _SearchHotKeysWidgetState extends State<SearchHotKeysWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               FlatButton(
+                onPressed: null,
                 child: Text(
                   S.of(context).searchHot,
                   style: Provider.of<TextStyle>(context),
@@ -92,8 +93,8 @@ class _SearchHotKeysWidgetState extends State<SearchHotKeysWidget> {
               Consumer<SearchHotKeyModel>(
                 builder: (context, model, _) {
                   return Visibility(
-                      visible: !model.busy,
-                      child: model.idle
+                      visible: !model.isBusy,
+                      child: model.isIdle
                           ? FlatButton.icon(
                               textColor: Provider.of<Color>(context),
                               onPressed: model.shuffle,
@@ -140,7 +141,7 @@ class _SearchHistoriesWidgetState extends State<SearchHistoriesWidget> {
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((callback) {
-      Provider.of<SearchHistoryModel>(context).initData();
+      Provider.of<SearchHistoryModel>(context,listen: false).initData();
     });
     super.initState();
   }
@@ -156,6 +157,7 @@ class _SearchHistoriesWidgetState extends State<SearchHistoriesWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               FlatButton(
+                onPressed: null,
                 child: Text(
                   S.of(context).searchHistory,
                   style: Provider.of<TextStyle>(context),
@@ -163,8 +165,8 @@ class _SearchHistoriesWidgetState extends State<SearchHistoriesWidget> {
               ),
               Consumer<SearchHistoryModel>(
                 builder: (context, model, child) => Visibility(
-                    visible: !model.busy && !model.empty,
-                    child: model.idle
+                    visible: !model.isBusy && !model.isEmpty,
+                    child: model.isIdle
                         ? FlatButton.icon(
                             textColor: Provider.of<Color>(context),
                             onPressed: model.clearHistory,
@@ -204,7 +206,7 @@ class SearchSuggestionStateWidget<T extends ViewStateListModel, E>
     return Consumer<T>(
         builder: (context, model, _) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: model.idle
+              child: model.isIdle
                   ? Wrap(
                       alignment: WrapAlignment.start,
                       spacing: 10,
@@ -217,18 +219,18 @@ class SearchSuggestionStateWidget<T extends ViewStateListModel, E>
                       padding: EdgeInsets.symmetric(vertical: 30),
                       alignment: Alignment.center,
                       child: Builder(builder: (context) {
-                        if (model.busy) {
+                        if (model.isBusy) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 40),
                             child: CupertinoActivityIndicator(),
                           );
-                        } else if (model.error) {
+                        } else if (model.isError) {
                           return const Icon(
                             IconFonts.pageError,
                             size: 60,
                             color: Colors.grey,
                           );
-                        } else if (model.empty) {
+                        } else if (model.isEmpty) {
                           return const Icon(
                             IconFonts.pageEmpty,
                             size: 70,

@@ -1,7 +1,4 @@
-import 'package:fun_android/config/net/api.dart';
-import 'package:fun_android/provider/view_state_model.dart';
-
-import 'view_state.dart';
+import 'view_state_model.dart';
 
 /// 基于
 abstract class ViewStateListModel<T> extends ViewStateModel {
@@ -10,7 +7,7 @@ abstract class ViewStateListModel<T> extends ViewStateModel {
 
   /// 第一次进入页面loading skeleton
   initData() async {
-    setBusy(true);
+    setBusy();
     await refresh(init: true);
   }
 
@@ -19,25 +16,22 @@ abstract class ViewStateListModel<T> extends ViewStateModel {
     try {
       List<T> data = await loadData();
       if (data.isEmpty) {
+        list.clear();
         setEmpty();
       } else {
-        list = data;
-        if (init) {
-          //改变页面状态为非加载中
-          setBusy(false);
-        } else {
-          notifyListeners();
-        }
+        onCompleted(data);
+        list.clear();
+        list.addAll(data);
+        setIdle();
       }
     } catch (e, s) {
-      if (e is DioError && e.error is UnAuthorizedException) {
-        setUnAuthorized();
-        return;
-      }
-      handleCatch(e, s);
+      if (init) list.clear();
+      setError(e, s);
     }
   }
 
   // 加载数据
   Future<List<T>> loadData();
+
+  onCompleted(List<T> data) {}
 }

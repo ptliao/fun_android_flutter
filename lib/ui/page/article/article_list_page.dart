@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:fun_android/ui/helper/refresh_helper.dart';
 import 'package:fun_android/ui/widget/article_skeleton.dart';
+import 'package:fun_android/ui/widget/skeleton.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:fun_android/model/article.dart';
 import 'package:fun_android/model/tree.dart';
@@ -33,13 +34,14 @@ class _ArticleListPageState extends State<ArticleListPage>
       model: StructureListModel(widget.cid),
       onModelReady: (model) => model.initData(),
       builder: (context, model, child) {
-        if (model.busy) {
-          return ViewStateSkeletonList(
+        if (model.isBusy) {
+          return SkeletonList(
             builder: (context, index) => ArticleSkeletonItem(),
           );
-        } else if (model.error) {
-          return ViewStateWidget(onPressed: model.initData);
-        } else if (model.empty) {
+        } else if (model.isError && model.list.isEmpty) {
+          return ViewStateErrorWidget(
+              error: model.viewStateError, onPressed: model.initData);
+        } else if (model.isEmpty) {
           return ViewStateEmptyWidget(onPressed: model.initData);
         }
         return SmartRefresher(

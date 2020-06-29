@@ -1,31 +1,42 @@
+import 'package:fun_android/view_model/favourite_model.dart';
 import 'package:fun_android/view_model/locale_model.dart';
 import 'package:provider/provider.dart';
 import 'package:fun_android/view_model/theme_model.dart';
 import 'package:fun_android/view_model/user_model.dart';
+import 'package:provider/single_child_widget.dart';
 
-List<SingleChildCloneableWidget> providers = [
+List<SingleChildWidget> providers = [
   ...independentServices,
   ...dependentServices,
   ...uiConsumableProviders
 ];
 
 /// 独立的model
-List<SingleChildCloneableWidget> independentServices = [
-//  Provider.value(value: Api())
-  ChangeNotifierProvider<ThemeModel>.value(value: ThemeModel()),
-  ChangeNotifierProvider<LocaleModel>.value(value: LocaleModel()),
-  ChangeNotifierProvider<UserModel>.value(value: UserModel())
+List<SingleChildWidget> independentServices = [
+  ChangeNotifierProvider<ThemeModel>(
+    create: (context) => ThemeModel(),
+  ),
+  ChangeNotifierProvider<LocaleModel>(
+    create: (context) => LocaleModel(),
+  ),
+  ChangeNotifierProvider<GlobalFavouriteStateModel>(
+    create: (context) => GlobalFavouriteStateModel(),
+  )
 ];
 
 /// 需要依赖的model
-List<SingleChildCloneableWidget> dependentServices = [
-//  ProxyProvider<Api, AuthenticationService>(
-//    builder: (context, api, authenticationService) =>
-//        AuthenticationService(api: api),
-//  )
+///
+/// UserModel依赖globalFavouriteStateModel
+List<SingleChildWidget> dependentServices = [
+  ChangeNotifierProxyProvider<GlobalFavouriteStateModel, UserModel>(
+    create: null,
+    update: (context, globalFavouriteStateModel, userModel) =>
+    userModel ??
+        UserModel(globalFavouriteStateModel: globalFavouriteStateModel),
+  )
 ];
 
-List<SingleChildCloneableWidget> uiConsumableProviders = [
+List<SingleChildWidget> uiConsumableProviders = [
 //  StreamProvider<User>(
 //    builder: (context) => Provider.of<AuthenticationService>(context, listen: false).user,
 //  )

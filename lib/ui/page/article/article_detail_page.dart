@@ -2,13 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
 import 'package:fun_android/provider/provider_widget.dart';
 import 'package:fun_android/ui/helper/favourite_helper.dart';
 import 'package:fun_android/model/article.dart';
+import 'package:fun_android/ui/widget/app_bar.dart';
 import 'package:fun_android/utils/string_utils.dart';
 import 'package:fun_android/utils/third_app_utils.dart';
 import 'package:fun_android/view_model/favourite_model.dart';
+import 'package:fun_android/view_model/user_model.dart';
+import 'package:provider/provider.dart';
 import 'package:share/share.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,18 +22,21 @@ class ArticleDetailPage extends StatefulWidget {
   ArticleDetailPage({this.article});
 
   @override
-  _WebViewState createState() => _WebViewState();
+  _ArticleDetailPageState createState() => _ArticleDetailPageState();
 }
 
-class _WebViewState extends State<ArticleDetailPage> {
+class _ArticleDetailPageState extends State<ArticleDetailPage> {
   WebViewController _webViewController;
   Completer<bool> _finishedCompleter = Completer();
 
   ValueNotifier canGoBack = ValueNotifier(false);
   ValueNotifier canGoForward = ValueNotifier(false);
 
+  Future canOpenAppFuture;
+
   @override
   void initState() {
+    canOpenAppFuture = ThirdAppUtils.canOpenApp(widget.article.link);
     super.initState();
   }
 
@@ -63,11 +69,15 @@ class _WebViewState extends State<ArticleDetailPage> {
           initialUrl: widget.article.link,
           // 加载js
           javascriptMode: JavascriptMode.unrestricted,
-
           navigationDelegate: (NavigationRequest request) {
             ///TODO isForMainFrame为false,页面不跳转.导致网页内很多链接点击没效果
             debugPrint('导航$request');
-            return NavigationDecision.navigate;
+            if (!request.url.startsWith('http')) {
+              ThirdAppUtils.openAppByUrl(request.url);
+              return NavigationDecision.prevent;
+            } else {
+              return NavigationDecision.navigate;
+            }
           },
           onWebViewCreated: (WebViewController controller) {
             _webViewController = controller;
@@ -86,7 +96,7 @@ class _WebViewState extends State<ArticleDetailPage> {
       ),
       bottomNavigationBar: BottomAppBar(
         child: IconTheme(
-          data: Theme.of(context).iconTheme.copyWith(opacity: 0.6),
+          data: Theme.of(context).iconTheme.copyWith(opacity: 0.7),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
@@ -120,21 +130,25 @@ class _WebViewState extends State<ArticleDetailPage> {
                 },
               ),
               ProviderWidget<FavouriteModel>(
-                model: FavouriteModel(widget.article),
+                model: FavouriteModel(
+                    globalFavouriteModel: Provider.of(context, listen: false)),
                 builder: (context, model, child) {
                   var tag = 'detail';
+                  var userModel =
+                      Provider.of<UserModel>(context, listen: false);
                   return IconButton(
                     tooltip: S.of(context).favourites,
                     icon: Hero(
                       tag: tag,
                       child: Icon(
-                          model.article.collect ?? true
+                          userModel.hasUser && (widget.article.collect ?? true)
                               ? Icons.favorite
                               : Icons.favorite_border,
                           color: Colors.redAccent[100]),
                     ),
                     onPressed: () async {
-                      await addFavourites(context, model, tag);
+                      await addFavourites(context,
+                          article: widget.article, model: model, tag: tag);
                     },
                   );
                 },
@@ -144,7 +158,7 @@ class _WebViewState extends State<ArticleDetailPage> {
         ),
       ),
       floatingActionButton: FutureBuilder<String>(
-        future: ThirdAppUtils.canOpenApp(widget.article.link),
+        future: canOpenAppFuture,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             return FloatingActionButton(
@@ -172,6 +186,7 @@ class _WebViewState extends State<ArticleDetailPage> {
       debugPrint('canGoBack--->$value');
       return canGoBack.value = value;
     });
+
     /// 是否可以前进
     _webViewController.canGoForward().then((value) {
       debugPrint('canGoForward--->$value');
@@ -193,14 +208,10 @@ class WebViewTitle extends StatelessWidget {
         FutureBuilder<bool>(
           future: future,
           initialData: false,
-          builder: (context, snapshot) {
-            return Offstage(
-              offstage: snapshot.data,
-              child: Padding(
-                  padding: EdgeInsets.only(right: 5),
-                  child: CupertinoActivityIndicator()),
-            );
-          },
+          builder: (context, snapshot) => snapshot.data
+              ? SizedBox.shrink()
+              : Padding(
+                  padding: EdgeInsets.only(right: 5), child: AppBarIndicator()),
         ),
         Expanded(
             child: Text(
@@ -237,7 +248,7 @@ class WebViewPopupMenu extends StatelessWidget {
           case 1:
             break;
           case 2:
-            Share.share(article.link, subject: article.title);
+            Share.share(article.title + ' ' + article.link);
             break;
         }
       },

@@ -1,92 +1,86 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
+import 'package:dio/native_imp.dart';
 import 'package:flutter/foundation.dart';
-import 'package:fun_android/provider/view_state.dart';
-import 'http.dart';
+import 'package:dio/dio.dart';
+import 'package:fun_android/utils/platform_utils.dart';
+
 export 'package:dio/dio.dart';
 
-/// 玩Android API
-class ApiInterceptor extends InterceptorsWrapper {
-  static const baseUrl = 'https://www.wanandroid.com/';
+// 必须是顶层函数
+_parseAndDecode(String response) {
+  return jsonDecode(response);
+}
 
+parseJson(String text) {
+  return compute(_parseAndDecode, text);
+}
+
+abstract class BaseHttp extends DioForNative {
+  BaseHttp() {
+    /// 初始化 加入app通用处理
+    (transformer as DefaultTransformer).jsonDecodeCallback = parseJson;
+    interceptors..add(HeaderInterceptor());
+    init();
+  }
+
+  void init();
+}
+
+/// 添加常用Header
+class HeaderInterceptor extends InterceptorsWrapper {
   @override
-  onRequest(RequestOptions options) {
-    options.baseUrl = baseUrl;
-    debugPrint('---api-request--->url--> ${options.baseUrl}${options.path}' +
-        ' queryParameters: ${options.queryParameters}');
-//    debugPrint('---api-request--->data--->${options.data}');
+  onRequest(RequestOptions options) async {
+    options.connectTimeout = 1000 * 45;
+    options.receiveTimeout = 1000 * 45;
+
+    var appVersion = await PlatformUtils.getAppVersion();
+    var version = Map()
+      ..addAll({
+        'appVerison': appVersion,
+      });
+    options.headers['version'] = version;
+    options.headers['platform'] = Platform.operatingSystem;
     return options;
-  }
-
-  @override
-  onResponse(Response response) {
-    var statusCode = response.statusCode;
-    if (statusCode != 200) {
-      /// 非200会在http的onError()中
-    } else {
-//      debugPrint('---api-response--->resp----->${response.data}');
-      if (response.data is Map) {
-        RespData respData = RespData.fromJson(response.data);
-        if (respData.success) {
-          response.data = respData.data;
-          return http.resolve(response);
-        } else {
-          return handleFailed(respData);
-        }
-      } else {
-        /// WanAndroid API 如果报错,返回的数据类型存在问题
-        /// eg: 没有登录的返回的值为'{"errorCode":-1001,"errorMsg":"请先登录！"}'
-        /// 虽然是json样式,但是[response.headers.contentType?.mimeType]的值为'text/html'
-        /// 导致dio没有解析为json对象.两种解决方案:
-        /// 1.在post/get方法前加入泛型(Map),让其强制转换
-        /// 2.在这里统一处理再次解析
-        debugPrint('---api-response--->error--not--map---->$response');
-        RespData respData = RespData.fromJson(json.decode(response.data));
-        return handleFailed(respData);
-      }
-    }
-  }
-
-  Future<Response> handleFailed(RespData respData) {
-    debugPrint('---api-response--->error---->$respData');
-    if (respData.code == -1001) {
-      // 由于cookie过期,所以需要清除本地存储的登录信息
-//      StorageManager.localStorage.deleteItem(UserModel.keyUser);
-      // 需要登录
-      throw const UnAuthorizedException();
-    }
-    return http.reject(respData.message);
   }
 }
 
-class RespData {
-  dynamic data;
+/// 子类需要重写
+abstract class BaseResponseData {
   int code = 0;
   String message;
+  dynamic data;
 
-  bool get success => 0 == code;
+  bool get success;
 
-  RespData({this.data, this.code, this.message});
+  BaseResponseData({this.code, this.message, this.data});
 
   @override
   String toString() {
-    return 'RespData{data: $data, status: $code, message: $message}';
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['errorCode'] = this.code;
-    data['errorMsg'] = this.message;
-    data['data'] = this.data;
-    return data;
-  }
-
-  RespData.fromJson(Map<String, dynamic> json) {
-    code = json['errorCode'];
-    message = json['errorMsg'];
-    data = json['data'];
+    return 'BaseRespData{code: $code, message: $message, data: $data}';
   }
 }
 
+
+/// 接口的code没有返回为true的异常
+class NotSuccessException implements Exception {
+  String message;
+
+  NotSuccessException.fromRespData(BaseResponseData respData) {
+    message = respData.message;
+  }
+
+  @override
+  String toString() {
+    return 'NotExpectedException{respData: $message}';
+  }
+}
+
+/// 用于未登录等权限不够,需要跳转授权页面
+class UnAuthorizedException implements Exception {
+  const UnAuthorizedException();
+
+  @override
+  String toString() => 'UnAuthorizedException';
+}
 

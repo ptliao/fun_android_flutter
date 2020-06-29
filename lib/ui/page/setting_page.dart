@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
+import 'package:fun_android/provider/provider_widget.dart';
 import 'package:fun_android/view_model/locale_model.dart';
+import 'package:fun_android/view_model/setting_model.dart';
 import 'package:launch_review/launch_review.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +28,29 @@ class SettingPage extends StatelessWidget {
               ),
               Material(
                 color: Theme.of(context).cardColor,
+                child: ProviderWidget<UseWebViewPluginModel>(
+                  model: UseWebViewPluginModel(),
+                  builder: (context, model, child) => ListTile(
+                    title: Text('WebViewPlugin'),
+                    onTap: model.switchValue,
+                    leading: Icon(
+                      Icons.language,
+                      color: iconColor,
+                    ),
+                    trailing: CupertinoSwitch(
+                        activeColor: Theme.of(context).accentColor,
+                        value: model.value,
+                        onChanged: (value) {
+                          model.switchValue();
+                        }),
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 20,
+              ),
+              Material(
+                color: Theme.of(context).cardColor,
                 child: ExpansionTile(
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -33,7 +58,7 @@ class SettingPage extends StatelessWidget {
                       Text(S.of(context).settingFont),
                       Text(
                         ThemeModel.fontName(
-                            Provider.of<ThemeModel>(context).fontIndex,
+                            Provider.of<ThemeModel>(context,listen: false).fontIndex,
                             context),
                         style: Theme.of(context).textTheme.caption,
                       )
@@ -48,7 +73,7 @@ class SettingPage extends StatelessWidget {
                         shrinkWrap: true,
                         itemCount: ThemeModel.fontValueList.length,
                         itemBuilder: (context, index) {
-                          var model = Provider.of<ThemeModel>(context);
+                          var model = Provider.of<ThemeModel>(context,listen: false);
                           return RadioListTile(
                             value: index,
                             onChanged: (index) {
@@ -83,7 +108,7 @@ class SettingPage extends StatelessWidget {
                     ],
                   ),
                   leading: Icon(
-                    Icons.language,
+                    Icons.public,
                     color: iconColor,
                   ),
                   children: <Widget>[
@@ -112,7 +137,8 @@ class SettingPage extends StatelessWidget {
                 child: ListTile(
                   title: Text(S.of(context).rate),
                   onTap: () async {
-                    LaunchReview.launch(androidAppId: "cn.phoenixsky.funandroid",
+                    LaunchReview.launch(
+                        androidAppId: "cn.phoenixsky.funandroid",
                         iOSAppId: "1477299503");
                   },
                   leading: Icon(
@@ -137,7 +163,8 @@ class SettingPage extends StatelessWidget {
                     } else {
                       showToast(S.of(context).githubIssue);
                       await Future.delayed(Duration(seconds: 1));
-                      launch('https://github.com/phoenixsky/fun_android_flutter',
+                      launch(
+                          'https://github.com/phoenixsky/fun_android_flutter',
                           forceSafariVC: false);
                     }
                   },

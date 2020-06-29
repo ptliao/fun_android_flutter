@@ -3,11 +3,10 @@ import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:fun_android/generated/i18n.dart';
+import 'package:fun_android/generated/l10n.dart';
 
-import 'package:oktoast/oktoast.dart';
 import 'package:provider/provider.dart';
-import 'package:fun_android/config/router_config.dart';
+import 'package:fun_android/config/router_manger.dart';
 import 'package:fun_android/provider/provider_widget.dart';
 import 'package:fun_android/ui/widget/button_progress_indicator.dart';
 import 'package:fun_android/ui/widget/third_component.dart';
@@ -27,11 +26,14 @@ class _LoginPageState extends State<LoginPage> {
   /// 理论上应该在当前页面dispose,
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _pwdFocus = FocusNode();
 
   @override
   void dispose() {
     _nameController.dispose();
     _passwordController.dispose();
+    _pwdFocus.unfocus();
+    _pwdFocus.dispose();
     super.dispose();
   }
 
@@ -63,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
                         builder: (context, model, child) {
                           return Form(
                             onWillPop: () async {
-                              return !model.busy;
+                              return !model.isBusy;
                             },
                             child: child,
                           );
@@ -73,15 +75,20 @@ class _LoginPageState extends State<LoginPage> {
                             children: <Widget>[
                               LoginTextField(
                                 label: S.of(context).userName,
-                                icon: Icons.person_outline,
+                                icon: Icons.perm_identity,
                                 controller: _nameController,
                                 textInputAction: TextInputAction.next,
+                                onFieldSubmitted: (text) {
+                                  FocusScope.of(context)
+                                      .requestFocus(_pwdFocus);
+                                },
                               ),
                               LoginTextField(
                                 controller: _passwordController,
                                 label: S.of(context).password,
                                 icon: Icons.lock_outline,
                                 obscureText: true,
+                                focusNode: _pwdFocus,
                                 textInputAction: TextInputAction.done,
                               ),
                               LoginButton(_nameController, _passwordController),
@@ -111,7 +118,7 @@ class LoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     var model = Provider.of<LoginModel>(context);
     return LoginButtonWidget(
-      child: model.busy
+      child: model.isBusy
           ? ButtonProgressIndicator()
           : Text(
               S.of(context).signIn,
@@ -120,7 +127,7 @@ class LoginButton extends StatelessWidget {
                   .title
                   .copyWith(wordSpacing: 6),
             ),
-      onPressed: model.busy
+      onPressed: model.isBusy
           ? null
           : () {
               var formState = Form.of(context);
@@ -131,7 +138,7 @@ class LoginButton extends StatelessWidget {
                   if (value) {
                     Navigator.of(context).pop(true);
                   } else {
-                    showToast(model.errorMessage);
+                    model.showErrorMessage(context);
                   }
                 });
               }

@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fun_android/config/resource_mananger.dart';
-import 'package:fun_android/generated/i18n.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:fun_android/generated/l10n.dart';
+
+import 'view_state.dart';
 
 /// 加载中
 class ViewStateBusyWidget extends StatelessWidget {
@@ -14,46 +15,129 @@ class ViewStateBusyWidget extends StatelessWidget {
 
 /// 基础Widget
 class ViewStateWidget extends StatelessWidget {
+  final String title;
   final String message;
   final Widget image;
   final Widget buttonText;
+  final String buttonTextData;
   final VoidCallback onPressed;
 
   ViewStateWidget(
       {Key key,
       this.image,
+      this.title,
       this.message,
       this.buttonText,
-      @required this.onPressed})
+      @required this.onPressed,
+      this.buttonTextData})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          image ?? Icon(IconFonts.pageError, size: 80, color: Colors.grey[500]),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 150),
-            child: Text(
-              message ?? S.of(context).pageStateError,
-              style: Theme.of(context)
-                  .textTheme
-                  .body1
-                  .copyWith(color: Colors.grey),
-            ),
+    var titleStyle =
+        Theme.of(context).textTheme.subhead.copyWith(color: Colors.grey);
+    var messageStyle = titleStyle.copyWith(
+        color: titleStyle.color.withOpacity(0.7), fontSize: 14);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        image ?? Icon(IconFonts.pageError, size: 80, color: Colors.grey[500]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title ?? S.of(context).viewStateMessageError,
+                style: titleStyle,
+              ),
+              SizedBox(height: 20),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: 200, minHeight: 150),
+                child: SingleChildScrollView(
+                  child: Text(message ?? '', style: messageStyle),
+                ),
+              ),
+            ],
           ),
-          ViewStateButton(
+        ),
+        Center(
+          child: ViewStateButton(
             child: buttonText,
+            textData: buttonTextData,
             onPressed: onPressed,
-          )
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
+
+/// ErrorWidget
+class ViewStateErrorWidget extends StatelessWidget {
+  final ViewStateError error;
+  final String title;
+  final String message;
+  final Widget image;
+  final Widget buttonText;
+  final String buttonTextData;
+  final VoidCallback onPressed;
+
+  const ViewStateErrorWidget({
+    Key key,
+    @required this.error,
+    this.image,
+    this.title,
+    this.message,
+    this.buttonText,
+    this.buttonTextData,
+    @required this.onPressed,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    var defaultImage;
+    var defaultTitle;
+    var errorMessage = error.message;
+    String defaultTextData = S.of(context).viewStateButtonRetry;
+    switch (error.errorType) {
+      case ViewStateErrorType.networkTimeOutError:
+        defaultImage = Transform.translate(
+          offset: Offset(-50, 0),
+          child: const Icon(IconFonts.pageNetworkError,
+              size: 100, color: Colors.grey),
+        );
+        defaultTitle = S.of(context).viewStateMessageNetworkError;
+        // errorMessage = ''; // 网络异常移除message提示
+        break;
+      case ViewStateErrorType.defaultError:
+        defaultImage =
+            const Icon(IconFonts.pageError, size: 100, color: Colors.grey);
+        defaultTitle = S.of(context).viewStateMessageError;
+        break;
+
+      case ViewStateErrorType.unauthorizedError:
+        return ViewStateUnAuthWidget(
+          image: image,
+          message: message,
+          buttonText: buttonText,
+          onPressed: onPressed,
+        );
+    }
+
+    return ViewStateWidget(
+      onPressed: this.onPressed,
+      image: image ?? defaultImage,
+      title: title ?? defaultTitle,
+      message: message ?? errorMessage,
+      buttonTextData: buttonTextData ?? defaultTextData,
+      buttonText: buttonText,
+    );
+  }
+}
+
 
 /// 页面无数据
 class ViewStateEmptyWidget extends StatelessWidget {
@@ -75,20 +159,14 @@ class ViewStateEmptyWidget extends StatelessWidget {
     return ViewStateWidget(
       onPressed: this.onPressed,
       image: image ??
-          const Icon(
-            IconFonts.pageEmpty,
-            size: 100,
-            color: Colors.grey,
-          ),
-      message: message ?? S.of(context).viewStateMessageEmpty,
-      buttonText: buttonText ??
-          Text(
-            S.of(context).viewStateButtonRefresh,
-            style: TextStyle(letterSpacing: 5),
-          ),
+          const Icon(IconFonts.pageEmpty, size: 100, color: Colors.grey),
+      title: message ?? S.of(context).viewStateMessageEmpty,
+      buttonText: buttonText,
+      buttonTextData: S.of(context).viewStateButtonRefresh,
     );
   }
 }
+
 
 /// 页面未授权
 class ViewStateUnAuthWidget extends StatelessWidget {
@@ -99,10 +177,10 @@ class ViewStateUnAuthWidget extends StatelessWidget {
 
   const ViewStateUnAuthWidget(
       {Key key,
-      this.image,
-      this.message,
-      this.buttonText,
-      @required this.onPressed})
+        this.image,
+        this.message,
+        this.buttonText,
+        @required this.onPressed})
       : super(key: key);
 
   @override
@@ -110,12 +188,9 @@ class ViewStateUnAuthWidget extends StatelessWidget {
     return ViewStateWidget(
       onPressed: this.onPressed,
       image: image ?? ViewStateUnAuthImage(),
-      message: message ?? S.of(context).viewStateMessageUnAuth,
-      buttonText: buttonText ??
-          Text(
-            S.of(context).signIn,
-            style: TextStyle(letterSpacing: 5),
-          ),
+      title: message ?? S.of(context).viewStateMessageUnAuth,
+      buttonText: buttonText,
+      buttonTextData: S.of(context).viewStateButtonLogin,
     );
   }
 }
@@ -142,15 +217,17 @@ class ViewStateUnAuthImage extends StatelessWidget {
 class ViewStateButton extends StatelessWidget {
   final VoidCallback onPressed;
   final Widget child;
+  final String textData;
 
-  const ViewStateButton({@required this.onPressed, this.child});
+  const ViewStateButton({@required this.onPressed, this.child, this.textData})
+      : assert(child == null || textData == null);
 
   @override
   Widget build(BuildContext context) {
     return OutlineButton(
       child: child ??
           Text(
-            S.of(context).pageStateRetry,
+            textData ?? S.of(context).viewStateButtonRetry,
             style: TextStyle(wordSpacing: 5),
           ),
       textColor: Colors.grey,
@@ -159,49 +236,4 @@ class ViewStateButton extends StatelessWidget {
       highlightedBorderColor: Theme.of(context).splashColor,
     );
   }
-}
-
-/// 骨架屏
-class ViewStateSkeletonList extends StatelessWidget {
-  final EdgeInsetsGeometry padding;
-  final int length;
-  final IndexedWidgetBuilder builder;
-
-  ViewStateSkeletonList(
-      {this.length: 6, //一般屏幕长度够用
-      this.padding = const EdgeInsets.all(7),
-      @required this.builder});
-
-  @override
-  Widget build(BuildContext context) {
-    var theme = Theme.of(context);
-    bool isDark = theme.brightness == Brightness.dark;
-    return SingleChildScrollView(
-      physics: NeverScrollableScrollPhysics(),
-      child: Shimmer.fromColors(
-        period: Duration(milliseconds: 1200),
-        baseColor: isDark ? Colors.grey[700] : Colors.grey[350],
-//        highlightColor: isDark ? Colors.grey[500] : Color.alphaBlend(
-//          theme.accentColor.withAlpha(20), Colors.grey[100],),
-        highlightColor: isDark ? Colors.grey[500] : Colors.grey[200],
-        child: Padding(
-          padding: padding,
-          child: Column(
-            children: List.generate(length, (index) => builder(context, index)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 骨架屏 元素背景 ->形状及颜色
-class SkeletonDecoration extends BoxDecoration {
-  SkeletonDecoration({
-    isCircle: false,
-    isDark: false,
-  }) : super(
-          color: !isDark ? Colors.grey[350] : Colors.grey[700],
-          shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
-        );
 }
